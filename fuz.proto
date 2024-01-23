@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+message DeviceInfo {
+    enum DeviceType {
+        IOS = 0;
+        ANDROID = 1;
+        BROWSER = 2;
+    }
+    string secret = 1;
+    string appVer = 2;
+    DeviceType deviceType = 3;
+    string osVer = 4;
+    bool isTablet = 5;
+}
+
+message UserPoint {
+    uint32 event = 1;
+    uint32 paid = 2;
+}
+
+message MagazineIssue {
+    uint32 magazineIssueId = 1;
+    string magazineIssueName = 2;
+    string thumbnailUrl = 3;
+    uint32 paidPoint = 4;
+    uint32 campaignPaidPoint = 5;
+    bool isDiscountCampaign = 6;
+    bool isFreeCampaign = 7;
+    uint32 numberOfSamplePages = 8;
+    uint32 numberOfComments = 9;
+    string updatedDate = 10;
+    string endDate = 11;
+    bool isPurchased = 12;
+    bool isSubscribed = 13;
+    string firstPageImageUrl = 14;
+    string campaign = 15;
+    string longDescription = 16;
+    string magazineName = 17;
+    UserPoint cashBack = 18;
+    bool isRead = 19;
+}
+
+message Sns {
+    string body = 1;
+    string url = 2;
+}
+
+message ViewerMode {
+    enum ImageQuality {
+        NORMAL = 0;
+        HIGH = 1;
+    }
+    ImageQuality imageQuality = 1;
+}
+
+message ViewerPage {
+    message Image {
+        string imageUrl = 1;
+        string urlScheme = 2;
+        string iv = 3;
+        string encryptionKey = 4;
+    }
+    message WebView {
+        string url = 1;
+    }
+    message LastPage {}
+    Image image = 1;
+    WebView webview = 2;
+    LastPage lastPage = 3;
+}
+
+enum ScrollDirection {
+    LEFT = 0;
+    RIGHT = 1;
+}
+
+message MagazineViewer2Request {
+    DeviceInfo deviceInfo = 1;
+    uint32 magazineIssueId = 2;
+    bool purchaseRequest = 3;
+    uint32 consumePaidPoint = 4;
+    ViewerMode viewerMode = 5;
+}
+
+message MagazineViewer2Response {
+    message Content {
+        uint32 startPage = 1;
+        string mangaName = 2;
+    }
+    repeated ViewerPage pages = 1;
+    bool isCommentEnabled = 2;
+    Sns sns = 3;
+    repeated Content tableOfContents = 4;
+    uint32 shioriPage = 5;
+    ScrollDirection scroll = 6;
+    UserPoint userPoint = 7;
+    bool isFirstPageBlank = 8;
+    MagazineIssue magazineIssue = 9;
+    UserPoint cashBack = 10;
+}
+
+message SignInRequest {
+    DeviceInfo deviceInfo = 1;
+    string email = 2;
+    string password = 3;
+}
+
+message SignInResponse {
+    bool success = 1;
+}
+
+message WebMypageResponse {
+    string mailAddress = 1;
+}
