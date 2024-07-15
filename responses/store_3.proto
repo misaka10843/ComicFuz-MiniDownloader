@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+message OuterMessage {
+    // 仅包含需要解析的内容
+    message NestedMessage3 {
+        string label = 1;                   // "最新号"
+        int32 field1 = 2;                    // 例如: 6051
+        string field2 = 3;                    // 例如: "/a/1BHvXy/1uz.webp?h=vBnsAXNtHhDifmFTUtV2RQ&e=5000000000"
+        string field3 = 4;                    // 例如: "krr://open/subscription"
+
+        message NestedDetail {
+            int32 field1 = 1;                // 例如: 27095
+            string field2 = 2;                // 例如: "２０２４年８月号"
+            string field3 = 3;                // 例如: "/j/1Czwop/6Dn.webp?h=4b_aLN1HycKhPj3FaGI-MA&e=5000000000"
+            int32 field4 = 4;                // 例如: 770
+            int32 field8 = 8;                // 例如: 15
+            string field10 = 10;              // 例如: "2024/07/12 発売"
+            string field11 = 11;              // 例如: "2025/07/11"
+            string field14 = 14;              // 例如: "/k/1Czx81/6Dn/0.jpeg.enc?h=rypcm26ihdD46NFszivA4g&e=1721228400"
+            string field17 = 17;              // 例如: "花音"
+            string field20 = 20;              // 例如: "2025-07-11"
+        }
+
+        repeated NestedDetail details = 3;   // 多个细节消息
+    }
+
+    // 仅包含需要解析的字段
+    NestedMessage3 nested_message3 = 3;
+}
