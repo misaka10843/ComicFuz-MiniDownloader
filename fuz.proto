@@ -18,6 +18,62 @@ message UserPoint {
     uint32 paid = 2;
 }
 
+message Chapter {
+    enum Badge {
+        NONE = 0;
+        UPDATE = 1;
+        ADVANCE = 2;
+        SPECIAL = 3;
+    }
+    message PointConsumption {
+        enum Type {
+            ANY_ITEMS = 0;
+            EVENT_OR_PAID = 1;
+            PAID_ONLY = 2;
+        }
+        Type type = 1;
+        uint32 amount = 2;
+    }
+    uint32 chapterId = 1;
+    string chapterMainName = 2;
+    string chapterSubName = 3;
+    string thumbnailUrl = 4;
+    PointConsumption pointConsumption = 5;
+    uint32 numberOfComments = 6;
+    uint32 numberOfLikes = 7;
+    string updatedDate = 8;
+    bool isRead = 9;
+    string endOfRentalPeriod = 10;
+    string firstPageImageUrl = 11;
+    Badge badge = 12;
+}
+
+message BookIssue {
+    enum PurchaseStatus {
+        NONE = 0;
+        WISHED = 1;
+        PURCHASED = 2;
+    }
+    uint32 bookIssueId = 1;
+    string bookIssueName = 2;
+    string thumbnailUrl = 3;
+    uint32 paidPoint = 4;
+    uint32 campaignPaidPoint = 5;
+    bool isDiscountCampaign = 6;
+    bool isFreeCampaign = 7;
+    uint32 numberOfSamplePages = 8;
+    uint32 numberOfComments = 9;
+    string updatedDate = 10;
+    PurchaseStatus purchaseStatus = 11;
+    string expirationDateOfFreeCampaign = 12;
+    string firstPageImageUrl = 13;
+    string campaign = 14;
+    string longDescription = 15;
+    string bookName = 16;
+    UserPoint cashBack = 17;
+    bool isRead = 18;
+}
+
 message MagazineIssue {
     uint32 magazineIssueId = 1;
     string magazineIssueName = 2;
@@ -74,6 +130,26 @@ enum ScrollDirection {
     RIGHT = 1;
 }
 
+message BookViewer2Request {
+    DeviceInfo deviceInfo = 1;
+    uint32 bookIssueId = 2;
+    bool purchaseRequest = 3;
+    uint32 consumePaidPoint = 4;
+    ViewerMode viewerMode = 5;
+}
+
+message BookViewer2Response {
+    repeated ViewerPage pages = 1;
+    bool isCommentEnabled = 2;
+    Sns sns = 3;
+    uint32 shioriPage = 4;
+    ScrollDirection scroll = 5;
+    UserPoint userPoint = 6;
+    bool isFirstPageBlank = 7;
+    BookIssue bookIssue = 8;
+    UserPoint cashBack = 9;
+}
+
 message MagazineViewer2Request {
     DeviceInfo deviceInfo = 1;
     uint32 magazineIssueId = 2;
@@ -99,6 +175,24 @@ message MagazineViewer2Response {
     UserPoint cashBack = 10;
 }
 
+message MangaViewerRequest {
+    DeviceInfo deviceInfo = 1;
+    uint32 chapterId = 2;
+    bool useTicket = 3;
+    UserPoint userPoint = 4;
+    ViewerMode viewerMode = 5;
+}
+
+message MangaViewerResponse {
+    UserPoint cashBack = 1;
+    string viewerTitle = 2;
+    repeated ViewerPage pages = 3;
+    bool isCommentEnabled = 4;
+    Sns sns = 5;
+    ScrollDirection scroll = 6;
+    bool isFirstPageBlank = 8;
+}
+
 message SignInRequest {
     DeviceInfo deviceInfo = 1;
     string email = 2;
@@ -111,4 +205,34 @@ message SignInResponse {
 
 message WebMypageResponse {
     string mailAddress = 1;
+}
+
+message BookStorePage {
+    message Message {
+        // 仅包含需要解析的内容
+        message NestedMessage3 {
+            message NestedDetail {
+                int32 id = 1;                // 例如: 27095
+                string date = 2;                // 例如: "２０２４年８月号"
+                string thumbnail = 3;                // 例如: "/j/1Czwop/6Dn.webp?h=4b_aLN1HycKhPj3FaGI-MA&e=5000000000"
+                int32 field4 = 4;                // 例如: 770
+                int32 field8 = 8;                // 例如: 15
+                string updateDate1 = 10;              // 例如: "2024/07/12 発売"
+                string updateDate2 = 11;              // 例如: "2025/07/11"
+                string firstImage = 14;              // 例如: "/k/1Czx81/6Dn/0.jpeg.enc?h=rypcm26ihdD46NFszivA4g&e=1721228400"
+                string magazineName = 17;              // 例如: "花音"
+                string updateDate3 = 20;              // 例如: "2025-07-11"
+            }
+
+            repeated NestedDetail details = 3;   // 多个细节消息
+        }
+
+        // 仅包含需要解析的字段
+        repeated NestedMessage3 nested_message3 = 3;
+    }
+    Message info = 1;
+}
+
+message BookStorePageRequest {
+    DeviceInfo deviceInfo = 1;
 }

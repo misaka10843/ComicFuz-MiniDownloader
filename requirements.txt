@@ -1,3 +1,4 @@
-py7zr~=0.20.8
-cryptography~=42.0.0
-protobuf~=4.25.2
+cryptography>=42.0.0
+protobuf>=4.25.2
+requests>=2.32.3
+rich>=13.7.1
