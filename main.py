@@ -167,10 +167,21 @@ def get_store_index(token: str) -> fuz_pb2.BookStorePage:
     res = get_index("/v1/store_3", body.SerializeToString(), token)
     index = fuz_pb2.BookStorePage()
     index.ParseFromString(res)
-    mid = str(index.info.nested_message3.details.id)
-    date = str(index.info.nested_message3.details.updateDate3)
-    name = str(index.info.nested_message3.details.magazineName)
-    print(mid, date, name)
+
+    # 系列filter关键词
+    search_string = "まんがタイムきらら"
+    for detail in index.info.nested_message3[0].details:
+        if search_string not in str(detail.magazineName):
+            continue
+        mid = detail.id
+        date = str(detail.updateDate3)
+        name = str(detail.magazineName)
+        # magazine = get_magazine_index(mid, token)
+        # isPurchased = magazine.magazineIssue.isPurchased
+        # if isPurchased == 1:
+        #    print(f"[bold red]无法查询到您有权限下载")
+        #    exit(1)
+        print(mid, date, name)
 
 
 def download(save_dir: str, image: fuz_pb2.ViewerPage.Image, overwrite=False):
