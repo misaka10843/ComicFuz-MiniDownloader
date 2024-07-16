@@ -3,7 +3,6 @@ import json
 import os
 import re
 import time
-from os.path import basename
 from queue import Queue
 from threading import Thread
 from zipfile import ZipFile
@@ -32,7 +31,6 @@ PROXY = {}
 
 def main(output_dir, user_email, password, token_file, proxy, magazine, compress):
     global PROXY
-    # 添加代理
     if proxy:
         PROXY = {'http': f'http://{proxy}', 'https': f'http://{proxy}'}
     print(
@@ -44,18 +42,18 @@ def main(output_dir, user_email, password, token_file, proxy, magazine, compress
     get_store_index(token)
     que = Queue(4)
     Thread(target=worker, args=(que,), daemon=True).start()
-    downloaded_path = ""
+    downloaded_info = ""
     if ',' in magazine:
-        string_list = magazine.split(',')
-        for item in string_list:
-            downloaded_path = down_magazine(output_dir, int(item), token, que)
-            print(f"[bold green]正在等待10s后继续下载")
+        for item in magazine.split(','):
+            downloaded_info = down_magazine(output_dir, int(item), token, que)
+            print(f"[bold blue]正在等待10s之后继续下载")
             time.sleep(10)
     else:
-        downloaded_path = down_magazine(output_dir, int(magazine), token, que)
+        downloaded_info = down_magazine(output_dir, int(magazine), token, que)
     if compress:
-        compression(downloaded_path, output_dir)
-    print(f"[bold green]全部任务已完成！")
+        print(downloaded_info)
+        compression(output_dir, downloaded_info[0], downloaded_info[1])
+    print(f"[bold green]所有任务已全部运行完成!")
 
 
 def sign(email: str, password: str) -> str:
@@ -181,6 +179,7 @@ def get_store_index(token: str) -> fuz_pb2.BookStorePage:
         # if isPurchased == 1:
         #    print(f"[bold red]无法查询到您有权限下载")
         #    exit(1)
+        # time.sleep(3)
         print(mid, date, name)
 
 
@@ -198,10 +197,10 @@ def download(save_dir: str, image: fuz_pb2.ViewerPage.Image, overwrite=False):
         print(f"图片已有,将跳过此图片,返回内容如下: {name}")
         return
     try:
-        data = requests.post(IMG_HOST + image.imageUrl, proxies=PROXY).content
+        data = requests.get(IMG_HOST + image.imageUrl, proxies=PROXY).content
     except Exception:
         time.sleep(5)
-        data = requests.post(IMG_HOST + image.imageUrl, proxies=PROXY).content
+        data = requests.get(IMG_HOST + image.imageUrl, proxies=PROXY).content
     key = bytes.fromhex(image.encryptionKey)
     iv = bytes.fromhex(image.iv)
     decryptor = Cipher(algorithms.AES(key), modes.CBC(iv)).decryptor()
@@ -234,32 +233,34 @@ def down_pages(
     que.join()
 
 
-def down_magazine(out_dir: str, magazine_id: int, token: str, que: Queue):
+def down_magazine(out_dir, magazine_id, token, que):
     magazine = get_magazine_index(magazine_id, token)
-    magazine_name = str(magazine.magazineIssue.magazineName)
-    if magazine_name == 'まんがタイムきらら':
-        magazine_name = "Kirara"
-    elif magazine_name == 'まんがタイムきららMAX':
-        magazine_name = "Max"
-    elif magazine_name == 'まんがタイムきららキャラット':
-        magazine_name = "Carat"
-    elif magazine_name == 'まんがタイムきららフォワード':
-        magazine_name = "Forward"
+    magazine_name = get_magazine_name(magazine.magazineIssue.magazineName)
+    folder_name = f"{magazine_name}/{magazine_name}{has_numbers(str(magazine.magazineIssue.magazineIssueName))}"
     down_pages(
-        f"{out_dir}/{magazine_name}/{magazine_name}{has_numbers(str(magazine.magazineIssue.magazineIssueName))}/",
+        f"{out_dir}/{folder_name}/",
         magazine, que,
         f"[{magazine_name}]{magazine.magazineIssue.magazineIssueName}[/]")
     print(
         f"[bold green]{has_numbers(str(magazine.magazineIssue.magazineIssueName))}下载完成！如果下载时遇见报错,请重新运行一下命令即可")
-    return f"{magazine_name}{has_numbers(str(magazine.magazineIssue.magazineIssueName))}"
+    return folder_name, has_numbers(str(magazine.magazineIssue.magazineIssueName))
+
+
+def get_magazine_name(magazine_name):
+    names = {
+        'まんがタイムきらら': "Kirara",
+        'まんがタイムきららMAX': "Max",
+        'まんがタイムきららキャラット': "Carat",
+        'まんがタイムきららフォワード': "Forward"
+    }
+    return names.get(magazine_name, magazine_name)
 
 
 def has_numbers(chat):
-    res_list = [str(int(i)) if i.isdigit() else i for i in chat]
-    return "".join(res_list)
+    return "".join(str(int(i)) if i.isdigit() else i for i in chat)
 
 
-def compression(download_dir: str, out_dir: str):
+def compression(out_dir: str, download_dir: str, magazine_name: str):
     print("[bold yellow]正在进行压缩中...")
     with console.status(f"[bold yellow]正在将{download_dir}压缩成zip中"):
         file_paths = []
@@ -267,20 +268,20 @@ def compression(download_dir: str, out_dir: str):
             for file in files:
                 file_path = os.path.join(root, file)
                 file_paths.append(file_path)
-                break  # 仅遍历当前目录,不进入子目录
-        with ZipFile(f'{out_dir}/{download_dir}.zip', 'w') as z:
-            for f in files:
-                z.write(f, arcname=basename(f))
-    print(f"[bold green]已经将图片打包压缩到{out_dir}/{download_dir}.zip")
+
+        with ZipFile(f'{out_dir}/{magazine_name}.zip', 'w') as z:
+            for file_path in file_paths:
+                relative_path = os.path.relpath(file_path, os.path.join(out_dir, download_dir))
+                z.write(file_path, arcname=relative_path)
+    print(f"[bold green]已经将图片打包压缩到{out_dir}/{magazine_name}.zip")
 
 
-def worker(que: Queue):
-    count = 0
+def worker(que):
     while True:
         item = que.get()
-        count += 1
         item.join()
         que.task_done()
 
 
-main()
+if __name__ == "__main__":
+    main()
