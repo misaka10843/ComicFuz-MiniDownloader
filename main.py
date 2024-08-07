@@ -1,7 +1,9 @@
 import getpass
 import json
 import os
+import random
 import re
+import shutil
 import time
 from queue import Queue
 from threading import Thread
@@ -29,7 +31,8 @@ T_MAP = {s: i for i, s in enumerate(TABLE)}
 PROXY = {}
 
 
-def main(output_dir, user_email, password, token_file, proxy, magazine, compress):
+def main(output_dir: str, user_email: str, password: str, token_file: str, proxy: str, magazine: str,
+         compress: bool = False):
     global PROXY
     if proxy:
         PROXY = {'http': f'http://{proxy}', 'https': f'http://{proxy}'}
@@ -46,13 +49,17 @@ def main(output_dir, user_email, password, token_file, proxy, magazine, compress
     if ',' in magazine:
         for item in magazine.split(','):
             downloaded_info = down_magazine(output_dir, int(item), token, que)
-            print(f"[bold blue]正在等待10s之后继续下载")
-            time.sleep(10)
+            if compress:
+                print(downloaded_info)
+                compression(output_dir, downloaded_info[0], downloaded_info[1], downloaded_info[2])
+            random_time = random.randint(10, 20)
+            print(f"[bold blue]正在等待{random_time}s之后继续下载")
+            time.sleep(random_time)
     else:
         downloaded_info = down_magazine(output_dir, int(magazine), token, que)
-    if compress:
-        print(downloaded_info)
-        compression(output_dir, downloaded_info[0], downloaded_info[1])
+        if compress:
+            print(downloaded_info)
+            compression(output_dir, downloaded_info[0], downloaded_info[1], downloaded_info[2])
     print(f"[bold green]所有任务已全部运行完成!")
 
 
@@ -199,7 +206,8 @@ def download(save_dir: str, image: fuz_pb2.ViewerPage.Image, overwrite=False):
     try:
         data = requests.get(IMG_HOST + image.imageUrl, proxies=PROXY).content
     except Exception:
-        time.sleep(5)
+        random_time = random.randint(5, 10)
+        time.sleep(random_time)
         data = requests.get(IMG_HOST + image.imageUrl, proxies=PROXY).content
     key = bytes.fromhex(image.encryptionKey)
     iv = bytes.fromhex(image.iv)
@@ -236,14 +244,14 @@ def down_pages(
 def down_magazine(out_dir, magazine_id, token, que):
     magazine = get_magazine_index(magazine_id, token)
     magazine_name = get_magazine_name(magazine.magazineIssue.magazineName)
-    folder_name = f"{magazine_name}/{magazine_name}{has_numbers(str(magazine.magazineIssue.magazineIssueName))}"
+    folder_name = f"{magazine_name}/[{magazine_name}]{has_numbers(str(magazine.magazineIssue.magazineIssueName))}"
     down_pages(
         f"{out_dir}/{folder_name}/",
         magazine, que,
         f"[{magazine_name}]{magazine.magazineIssue.magazineIssueName}[/]")
     print(
         f"[bold green]{has_numbers(str(magazine.magazineIssue.magazineIssueName))}下载完成！如果下载时遇见报错,请重新运行一下命令即可")
-    return folder_name, has_numbers(str(magazine.magazineIssue.magazineIssueName))
+    return folder_name, magazine_name, has_numbers(str(magazine.magazineIssue.magazineIssueName))
 
 
 def get_magazine_name(magazine_name):
@@ -260,20 +268,22 @@ def has_numbers(chat):
     return "".join(str(int(i)) if i.isdigit() else i for i in chat)
 
 
-def compression(out_dir: str, download_dir: str, magazine_name: str):
+def compression(out_dir: str, download_dir: str, magazine_name: str, magazine_issue_name: str):
     print("[bold yellow]正在进行压缩中...")
     with console.status(f"[bold yellow]正在将{download_dir}压缩成zip中"):
         file_paths = []
-        for root, _, files in os.walk(f'{out_dir}/{download_dir}'):
-            for file in files:
-                file_path = os.path.join(root, file)
-                file_paths.append(file_path)
-
-        with ZipFile(f'{out_dir}/{magazine_name}.zip', 'w') as z:
-            for file_path in file_paths:
-                relative_path = os.path.relpath(file_path, os.path.join(out_dir, download_dir))
-                z.write(file_path, arcname=relative_path)
-    print(f"[bold green]已经将图片打包压缩到{out_dir}/{magazine_name}.zip")
+        try:
+            for root, _, files in os.walk(f'{out_dir}/{download_dir}'):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    file_paths.append(file_path)
+            with ZipFile(f'{out_dir}/{magazine_name}/[{magazine_name}]{magazine_issue_name}.zip', 'w') as z:
+                for file_path in file_paths:
+                    relative_path = os.path.relpath(file_path, os.path.join(out_dir, download_dir))
+                    z.write(file_path, arcname=relative_path)
+        finally:
+            shutil.rmtree(f'{out_dir}/{download_dir}')
+    print(f"[bold green]已经将图片打包压缩到{out_dir}/{magazine_name}/[{magazine_name}]{magazine_issue_name}.zip")
 
 
 def worker(que):

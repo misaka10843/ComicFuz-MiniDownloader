@@ -162,5 +162,5 @@ cython_debug/
 
 protoc.exe
 token.txt
-fuz_pb2.py
 temp
+tocken.txt
