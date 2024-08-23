@@ -17,10 +17,18 @@
 * 下载出错时等待5s后自动重试
 * ~~**批量下载(详细请见命令示例)**~~
 
+### Mini Ver的特别功能
+
+* 支持检测杂志更新
+* 支持模块调用
+
+## 更多版本
+
+* [Full Ver](https://github.com/misaka10843/ComicFuz-Downloader) 全功能版，但是可能并没有怎么维护
+* [OneBot Ver](https://github.com/HoubunSOP/ComicFuz-MagazineDownloader) Mini Ver + OneBot的特殊版本，支持检测更新下载压缩并上传到qq群中
+
 ## Mini Ver与Full Ver的区别
 
-Mini Ver尽可能精简功能，并且仅支持调用
+Mini Ver尽可能精简功能
 
-理论上Mini Ver只支持在登录状态下下载杂志，并且自动进行压缩
-
-尽可能支持NoneBot的调用（没错，Mini Ver是NoneBot插件中的插件x）
+理论上Mini Ver只支持在登录状态下下载杂志

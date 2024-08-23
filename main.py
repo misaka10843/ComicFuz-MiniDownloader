@@ -11,6 +11,7 @@ from zipfile import ZipFile
 import requests
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from google.protobuf import json_format
+from requests import RequestException
 from rich import print
 from rich.console import Console
 from rich.progress import track
@@ -31,7 +32,7 @@ class ComicFuzExtractor:
     T_MAP = {s: i for i, s in enumerate(TABLE)}
 
     def __init__(self, output_dir: str, user_email: str, password: str, token_file: str, proxy: str, magazine: str,
-                 compress: bool = False, check_update: bool = True):
+                 compress: bool = False, check_update: bool = False):
         self.output_dir = output_dir
         self.user_email = user_email
         self.password = password
@@ -47,8 +48,11 @@ class ComicFuzExtractor:
     def run(self):
         if self.check_update:
             self.check_and_update()
-        else:
+        elif self.magazine:
             self.download_magazines()
+        else:
+            print("[bold red]您并没有填写杂志ID并没有开启更新模式")
+            exit(1)
 
     def get_session(self) -> str:
         if self.token_file and os.path.exists(self.token_file):
@@ -64,7 +68,7 @@ class ComicFuzExtractor:
         body.email = self.user_email
         body.password = self.password
         url = self.API_HOST + "/v1/sign_in"
-        response = requests.post(url, data=body.SerializeToString(), proxies=self.proxy)
+        response = self.request_with_retries("POST", url, data=body.SerializeToString(), proxies=self.proxy)
         res = fuz_pb2.SignInResponse()
         res.ParseFromString(response.content)
         if not res.success:
@@ -88,7 +92,7 @@ class ComicFuzExtractor:
             "user-agent": self.USER_AGENT,
             "cookie": self.COOKIE + token
         }
-        response = requests.post(url, headers=headers, proxies=self.proxy)
+        response = self.request_with_retries("POST", url, headers=headers, proxies=self.proxy)
         res = fuz_pb2.WebMypageResponse()
         res.ParseFromString(response.content)
         if res.mailAddress:
@@ -121,13 +125,14 @@ class ComicFuzExtractor:
 
         if not stored_data:
             self.save_data(updates)
-            print("[bold green]首次获取数据，已存储。")
+            print("[bold green]首次获取更新数据，已存储。")
             return
 
         latest_stored_id = max([int(data['id']) for data in stored_data])
 
         for update in updates:
             if int(update['id']) > latest_stored_id:
+                print(f"[bold blue]检测到{update['name']}更新，开始下载...")
                 que = Queue(4)
                 Thread(target=self.worker, args=(que,), daemon=True).start()
                 downloaded_info = self.down_magazine(int(update['id']), que)
@@ -136,6 +141,7 @@ class ComicFuzExtractor:
                     self.compression(downloaded_info[0], downloaded_info[1], downloaded_info[2])
                 self.save_data(updates)
                 break
+        print("[bold green]更新检查完毕")
 
     def load_stored_data(self):
         if os.path.exists('store_data.json'):
@@ -172,7 +178,7 @@ class ComicFuzExtractor:
         if self.token:
             headers["cookie"] = self.COOKIE + self.token
 
-        response = requests.post(url, data=body, headers=headers, proxies=self.proxy)
+        response = self.request_with_retries("POST", url, data=body, headers=headers, proxies=self.proxy)
 
         if response.status_code != 200:
             raise Exception("获取相关信息出错！请检查ID参数是否正确！或者稍后重试")
@@ -230,7 +236,7 @@ class ComicFuzExtractor:
         if not overwrite and os.path.exists(name):
             print(f"图片已有,将跳过此图片,返回内容如下: {name}")
             return
-        data = requests.get(self.IMG_HOST + image.imageUrl, proxies=self.proxy).content
+        data = self.request_with_retries("GET", self.IMG_HOST + image.imageUrl, proxies=self.proxy).content
         key = bytes.fromhex(image.encryptionKey)
         iv = bytes.fromhex(image.iv)
         decryptor = Cipher(algorithms.AES(key), modes.CBC(iv)).decryptor()
@@ -283,7 +289,41 @@ class ComicFuzExtractor:
     def has_numbers(chat):
         return "".join(str(int(i)) if i.isdigit() else i for i in chat)
 
+    @staticmethod
+    def request_with_retries(method, url, **kwargs):
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = requests.request(method, url, **kwargs)
+                response.raise_for_status()  # 针对HTTP错误引发异常
+                return response
+            except RequestException as e:
+                print(f"尝试第 {attempt + 1} 次失败: {e}")
+                if attempt + 1 == max_retries:
+                    print("所有重试尝试均已失败。正在退出程序。")
+                    exit(1)
+                time.sleep(2)  # 在下一次重试前等待2秒
+
 
 if __name__ == "__main__":
-    extractor = ComicFuzExtractor()
+    import argparse
+    from dotenv import load_dotenv
+
+    load_dotenv()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--magazine", type=int, required=False, help="Magazine number to download")
+    args = parser.parse_args()
+
+    # 从环境变量中获取参数
+    output_dir = os.getenv("OUTPUT_DIR")
+    user_email = os.getenv("USER_EMAIL")
+    password = os.getenv("PASSWORD")
+    token_file = os.getenv("TOKEN_FILE")
+    proxy = os.getenv("PROXY")
+    compress = os.getenv("COMPRESS", "False").lower() in ("true", "1", "t")
+    check_update = os.getenv("CHECK_UPDATE", "False").lower() in ("true", "1", "t")
+
+    # 创建实例并运行
+    extractor = ComicFuzExtractor(output_dir, user_email, password, token_file, proxy, args.magazine, compress,
+                                  check_update)
     extractor.run()
