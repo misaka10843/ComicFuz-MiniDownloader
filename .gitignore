@@ -164,3 +164,6 @@ protoc.exe
 token.txt
 temp
 tocken.txt
+
+download/
+*.json

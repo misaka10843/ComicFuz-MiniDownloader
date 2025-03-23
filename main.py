@@ -6,7 +6,6 @@ import shutil
 import time
 from queue import Queue
 from threading import Thread
-from zipfile import ZipFile
 
 import requests
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -17,6 +16,7 @@ from rich.console import Console
 from rich.progress import track
 
 import fuz_pb2
+from cp_cbz import package_cbz
 
 console = Console()
 
@@ -68,7 +68,7 @@ class ComicFuzExtractor:
         body.email = self.user_email
         body.password = self.password
         url = self.API_HOST + "/v1/sign_in"
-        response = self.request_with_retries("POST", url, data=body.SerializeToString(), proxies=self.proxy)
+        response = self.request_with_retries("POST", url, data=body.SerializeToString())
         res = fuz_pb2.SignInResponse()
         res.ParseFromString(response.content)
         if not res.success:
@@ -92,7 +92,7 @@ class ComicFuzExtractor:
             "user-agent": self.USER_AGENT,
             "cookie": self.COOKIE + token
         }
-        response = self.request_with_retries("POST", url, headers=headers, proxies=self.proxy)
+        response = self.request_with_retries("POST", url, headers=headers)
         res = fuz_pb2.WebMypageResponse()
         res.ParseFromString(response.content)
         if res.mailAddress:
@@ -128,10 +128,12 @@ class ComicFuzExtractor:
             print("[bold green]首次获取更新数据，已存储。")
             return
 
-        latest_stored_id = max([int(data['id']) for data in stored_data])
+        latest_stored_id = [int(data['id']) for data in stored_data]
 
-        for update in updates:
-            if int(update['id']) > latest_stored_id:
+        for update, stored_id in zip(updates, latest_stored_id):
+            print(update)
+            print(stored_id)
+            if int(update['id']) > stored_id:
                 print(f"[bold blue]检测到{update['name']}更新，开始下载...")
                 que = Queue(4)
                 Thread(target=self.worker, args=(que,), daemon=True).start()
@@ -178,7 +180,7 @@ class ComicFuzExtractor:
         if self.token:
             headers["cookie"] = self.COOKIE + self.token
 
-        response = self.request_with_retries("POST", url, data=body, headers=headers, proxies=self.proxy)
+        response = self.request_with_retries("POST", url, data=body, headers=headers)
 
         if response.status_code != 200:
             raise Exception("获取相关信息出错！请检查ID参数是否正确！或者稍后重试")
@@ -236,7 +238,7 @@ class ComicFuzExtractor:
         if not overwrite and os.path.exists(name):
             print(f"图片已有,将跳过此图片,返回内容如下: {name}")
             return
-        data = self.request_with_retries("GET", self.IMG_HOST + image.imageUrl, proxies=self.proxy).content
+        data = self.request_with_retries("GET", self.IMG_HOST + image.imageUrl).content
         key = bytes.fromhex(image.encryptionKey)
         iv = bytes.fromhex(image.iv)
         decryptor = Cipher(algorithms.AES(key), modes.CBC(iv)).decryptor()
@@ -246,21 +248,13 @@ class ComicFuzExtractor:
 
     def compression(self, download_dir: str, magazine_name: str, magazine_issue_name: str):
         print("[bold yellow]正在进行压缩中...")
-        with console.status(f"[bold yellow]正在将{download_dir}压缩成zip中"):
-            file_paths = []
+        with console.status(f"[bold yellow]正在将{download_dir}压缩成cbz中"):
             try:
-                for root, _, files in os.walk(f'{self.output_dir}/{download_dir}'):
-                    for file in files:
-                        file_path = os.path.join(root, file)
-                        file_paths.append(file_path)
-                with ZipFile(f'{self.output_dir}/{magazine_name}/[{magazine_name}]{magazine_issue_name}.zip', 'w') as z:
-                    for file_path in file_paths:
-                        relative_path = os.path.relpath(file_path, os.path.join(self.output_dir, download_dir))
-                        z.write(file_path, arcname=relative_path)
+                package_cbz(f'[{magazine_name}]{magazine_issue_name}', self.output_dir, download_dir)
             finally:
                 shutil.rmtree(f'{self.output_dir}/{download_dir}')
         print(
-            f"[bold green]已经将图片打包压缩到{self.output_dir}/{magazine_name}/[{magazine_name}]{magazine_issue_name}.zip")
+            f"[bold green]已经将图片打包压缩到{self.output_dir}/{magazine_name}/[{magazine_name}]{magazine_issue_name}.cbz")
 
     def worker(self, que):
         while True:
