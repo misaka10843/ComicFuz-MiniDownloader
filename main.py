@@ -250,7 +250,7 @@ class ComicFuzExtractor:
         print("[bold yellow]正在进行压缩中...")
         with console.status(f"[bold yellow]正在将{download_dir}压缩成cbz中"):
             try:
-                package_cbz(f'[{magazine_name}]{magazine_issue_name}', self.output_dir, download_dir)
+                package_cbz(f'[{magazine_name}]{magazine_issue_name}', self.output_dir, download_dir, magazine_name)
             finally:
                 shutil.rmtree(f'{self.output_dir}/{download_dir}')
         print(

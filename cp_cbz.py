@@ -7,7 +7,7 @@ from cbz.page import PageInfo
 from cbz.player import PARENT
 
 
-def package_cbz(title, path, download_dir):
+def package_cbz(title, path, download_dir, magazine_name):
     # 定义允许的图片扩展名
     allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
 
@@ -39,5 +39,5 @@ def package_cbz(title, path, download_dir):
     cbz_content = comic.pack()
     if not os.path.exists(path):
         os.makedirs(path)
-    cbz_path = PARENT / f'{path}/{title}.cbz'
+    cbz_path = PARENT / f'{path}/{magazine_name}/{title}.cbz'
     cbz_path.write_bytes(cbz_content)
