@@ -305,7 +305,7 @@ if __name__ == "__main__":
 
     load_dotenv()
     parser = argparse.ArgumentParser()
-    parser.add_argument("--magazine", type=int, required=False, help="Magazine number to download")
+    parser.add_argument("--magazine", type=str, required=False, help="Magazine number to download")
     args = parser.parse_args()
 
     # 从环境变量中获取参数

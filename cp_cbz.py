@@ -4,7 +4,6 @@ from pathlib import Path
 from cbz.comic import ComicInfo
 from cbz.constants import PageType, YesNo, Manga, AgeRating, Format
 from cbz.page import PageInfo
-from cbz.player import PARENT
 
 
 def package_cbz(title, path, download_dir, magazine_name):
@@ -25,12 +24,17 @@ def package_cbz(title, path, download_dir, magazine_name):
         )
         for i, path in enumerate(paths)
     ]
-
+    names = {
+        "Kirara": 'まんがタイムきらら',
+        "Max": 'まんがタイムきららMAX',
+        "Carat": 'まんがタイムきららキャラット',
+        "Forward": 'まんがタイムきららフォワード'
+    }
     comic = ComicInfo.from_pages(
         pages=pages,
         title=title,
-        series=title,
-        language_iso='zh',
+        series=names.get(magazine_name),
+        language_iso='ja',
         format=Format.WEB_COMIC,
         black_white=YesNo.NO,
         manga=Manga.YES,
@@ -39,5 +43,5 @@ def package_cbz(title, path, download_dir, magazine_name):
     cbz_content = comic.pack()
     if not os.path.exists(path):
         os.makedirs(path)
-    cbz_path = PARENT / f'{path}/{magazine_name}/{title}.cbz'
+    cbz_path = Path(f'{path}/{magazine_name}/{title}.cbz')
     cbz_path.write_bytes(cbz_content)
