@@ -31,8 +31,15 @@ class ComicFuzExtractor:
     TABLE = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_"
     T_MAP = {s: i for i, s in enumerate(TABLE)}
 
-    def __init__(self, output_dir: str, user_email: str, password: str, token_file: str, proxy: str, magazine: str,
-                 compress: bool = False, check_update: bool = False):
+    def __init__(self,
+                 output_dir: str,
+                 user_email: str,
+                 password: str,
+                 token_file: str,
+                 proxy: str,
+                 magazine: str,
+                 compress: bool = False,
+                 check_update: bool = False):
         self.output_dir = output_dir
         self.user_email = user_email
         self.password = password
@@ -128,12 +135,12 @@ class ComicFuzExtractor:
             print("[bold green]首次获取更新数据，已存储。")
             return
 
-        latest_stored_id = [int(data['id']) for data in stored_data]
+        stored_dict = {item['name']: item for item in stored_data}
 
-        for update, stored_id in zip(updates, latest_stored_id):
-            print(update)
-            print(stored_id)
-            if int(update['id']) > stored_id:
+        updated = False
+        for update in updates:
+            stored_id = stored_dict.get(update['name'], {}).get('id', 0)
+            if int(update['id']) > int(stored_id):
                 print(f"[bold blue]检测到{update['name']}更新，开始下载...")
                 que = Queue(4)
                 Thread(target=self.worker, args=(que,), daemon=True).start()
@@ -141,19 +148,15 @@ class ComicFuzExtractor:
                 if self.compress:
                     print(downloaded_info)
                     self.compression(downloaded_info[0], downloaded_info[1], downloaded_info[2])
-                self.save_data(updates)
-                break
+                updated = True
+
+                random_time = random.randint(10, 20)
+                print(f"[bold blue]等待{random_time}s后继续检查下一个更新")
+                time.sleep(random_time)
+
+        if updated:
+            self.save_data(updates)
         print("[bold green]更新检查完毕")
-
-    def load_stored_data(self):
-        if os.path.exists('store_data.json'):
-            with open('store_data.json', 'r', encoding='utf-8') as f:
-                return json.load(f)
-        return []
-
-    def save_data(self, data):
-        with open('store_data.json', 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
 
     def download_magazines(self):
         que = Queue(4)
@@ -256,7 +259,8 @@ class ComicFuzExtractor:
         print(
             f"[bold green]已经将图片打包压缩到{self.output_dir}/{magazine_name}/[{magazine_name}]{magazine_issue_name}.cbz")
 
-    def worker(self, que):
+    @staticmethod
+    def worker(que):
         while True:
             item = que.get()
             item.join()
@@ -272,10 +276,10 @@ class ComicFuzExtractor:
     @staticmethod
     def get_magazine_name(magazine_name):
         names = {
-            'まんがタイムきらら': "Kirara",
-            'まんがタイムきららMAX': "Max",
-            'まんがタイムきららキャラット': "Carat",
-            'まんがタイムきららフォワード': "Forward"
+            'まんがタイムきらら': "MangaTimeKirara",
+            'まんがタイムきららMAX': "MangaTimeKiraraMax",
+            'まんがタイムきららキャラット': "MangaTimeKiraraCarat",
+            'まんがタイムきららフォワード': "MangaTimeKiraraForward"
         }
         return names.get(magazine_name, magazine_name)
 
@@ -297,6 +301,19 @@ class ComicFuzExtractor:
                     print("所有重试尝试均已失败。正在退出程序。")
                     exit(1)
                 time.sleep(2)  # 在下一次重试前等待2秒
+        return None
+
+    @staticmethod
+    def load_stored_data():
+        if os.path.exists('store_data.json'):
+            with open('store_data.json', 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return []
+
+    @staticmethod
+    def save_data(data):
+        with open('store_data.json', 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
 
 
 if __name__ == "__main__":
